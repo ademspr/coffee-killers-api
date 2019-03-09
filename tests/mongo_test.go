@@ -26,12 +26,12 @@ func createUser_should_insert_user_into_mongo(t *testing.T) {
 		log.Fatalf("Unable to connect to mongo: connection string is empty")
 	}
 
-	session, err := Infra.NewSession(config.DbConnection)
+	session, err := Infra.NewSession(config.DbConnection, dbName)
 	if err != nil {
 		log.Fatalf("Unable to connect to mongo: %s", err)
 	}
 	defer session.Close()
-	userService := Services.NewUserService(session.Copy(), dbName, userCollectionName)
+	userService := Services.NewUserService(session.Copy())
 
 	testUsername := "integration_test_user"
 	testPassword := "integration_test_password"

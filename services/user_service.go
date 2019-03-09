@@ -12,8 +12,10 @@ type UserService struct {
 	collection *mgo.Collection
 }
 
-func NewUserService(session *Infra.Session, dbName string, collectionName string) *UserService {
-	collection := session.GetCollection(dbName, collectionName)
+const userCollectionName = "user"
+
+func NewUserService(session *Infra.Session) *UserService {
+	collection := session.GetCollection(session.DbName, userCollectionName)
 	collection.EnsureIndex(Models.UserModelIndex())
 	return &UserService{collection}
 }
