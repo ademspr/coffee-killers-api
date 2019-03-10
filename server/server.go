@@ -14,20 +14,22 @@ import (
 
 // Server http server
 type Server struct {
-	Router *mux.Router
+	router *mux.Router
 	config *Infra.ServerConfiguration
+	auth   *Auth
 }
 
 // CreateServer create a new http server
-func CreateServer(c *Infra.ServerConfiguration) *Server {
-	s := Server{Router: mux.NewRouter(), config: c}
+func CreateServer(c *Infra.Configuration) *Server {
+	s := Server{router: mux.NewRouter(), config: c.Server}
+	s.auth = &Auth{c.Auth.Secret}
 	return &s
 }
 
 // Start start http server
 func (s *Server) Start() {
 	log.Printf("Listening on port %d", s.config.Port)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.Port), handlers.LoggingHandler(os.Stdout, s.Router))
+	err := http.ListenAndServe(fmt.Sprintf(":%d", s.config.Port), handlers.LoggingHandler(os.Stdout, s.router))
 	if err != nil {
 		log.Fatal("http.ListenAndServe: ", err)
 	}
@@ -35,5 +37,9 @@ func (s *Server) Start() {
 
 // NewSubrouter create a new subrouter
 func (s *Server) NewSubrouter(path string) *mux.Router {
-	return s.Router.PathPrefix(path).Subrouter()
+	return s.router.PathPrefix(path).Subrouter()
+}
+
+func (s *Server) GetAuth() *Auth {
+	return s.auth
 }

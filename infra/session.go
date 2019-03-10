@@ -28,7 +28,7 @@ func NewSession(config *MongoConfiguration) (*Session, error) {
 		conn, err := tls.Dial("tcp", addr.String(), tlsConfig)
 		return conn, err
 	}
-	session, err := mgo.DialWithInfo(dialInfo)
+	session, err := mgo.Dial(config.Host)
 	if err != nil {
 		return nil, err
 	}

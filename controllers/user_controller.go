@@ -3,9 +3,9 @@ package routes
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 
+	DTOs "../dataobjects"
 	Entities "../entities"
 	Server "../server"
 	Services "../services"
@@ -14,10 +14,11 @@ import (
 
 type userController struct {
 	userService *Services.UserService
+	auth        *Server.Auth
 }
 
-func CreateUserController(us *Services.UserService, router *mux.Router) *mux.Router {
-	userController := userController{us}
+func CreateUserController(us *Services.UserService, router *mux.Router, a *Server.Auth) *mux.Router {
+	userController := userController{us, a}
 
 	router.HandleFunc("/", userController.createUserHandler).Methods("PUT")
 	router.HandleFunc("/{username}", userController.getUserHandler).Methods("GET")
@@ -26,13 +27,13 @@ func CreateUserController(us *Services.UserService, router *mux.Router) *mux.Rou
 }
 
 func (ur *userController) createUserHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := decodeUser(r)
+	err, user := decodeUser(r)
 	if err != nil {
 		Server.Error(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	err = ur.userService.Create(&user)
+	err = ur.userService.CreateUser(&user)
 	if err != nil {
 		Server.Error(w, http.StatusInternalServerError, err.Error())
 		return
@@ -41,9 +42,25 @@ func (ur *userController) createUserHandler(w http.ResponseWriter, r *http.Reque
 	Server.JSON(w, http.StatusOK, err)
 }
 
+func (ur *userController) profileHandler(w http.ResponseWriter, r *http.Request) {
+	claim, ok := r.Context().Value(Server.ContextKeyAuthtoken).(Server.Claims)
+	if !ok {
+		Server.Error(w, http.StatusBadRequest, "no context")
+		return
+	}
+	username := claim.Username
+
+	user, err := ur.userService.GetByUsername(username)
+	if err != nil {
+		Server.Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	Server.JSON(w, http.StatusOK, user)
+}
+
 func (ur *userController) getUserHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	log.Println(vars)
 	username := vars["username"]
 
 	user, err := ur.userService.GetByUsername(username)
@@ -55,12 +72,39 @@ func (ur *userController) getUserHandler(w http.ResponseWriter, r *http.Request)
 	Server.JSON(w, http.StatusOK, user)
 }
 
-func decodeUser(r *http.Request) (Entities.User, error) {
+func (ur *userController) loginHandler(w http.ResponseWriter, r *http.Request) {
+	err, credentials := decodeCredentials(r)
+	if err != nil {
+		Server.Error(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+
+	var user Entities.User
+	user, err = ur.userService.Login(credentials)
+	if err == nil {
+		cookie := ur.auth.NewCookie(user)
+		Server.JSONWithCookie(w, http.StatusOK, user, cookie)
+	} else {
+		Server.Error(w, http.StatusInternalServerError, "Incorrect password")
+	}
+}
+
+func decodeUser(r *http.Request) (error, Entities.User) {
 	var u Entities.User
 	if r.Body == nil {
-		return u, errors.New("no request body")
+		return errors.New("no request body"), u
 	}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&u)
-	return u, err
+	return err, u
+}
+
+func decodeCredentials(r *http.Request) (error, DTOs.UserCredentials) {
+	var c DTOs.UserCredentials
+	if r.Body == nil {
+		return errors.New("no request body"), c
+	}
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&c)
+	return err, c
 }

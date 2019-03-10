@@ -21,11 +21,17 @@ type ApplicationConfiguration struct {
 	Environment string `json:"env"`
 }
 
+// Auth authorization configuration
+type AuthConfiguration struct {
+	Secret string `json:"secret"`
+}
+
 // Configuration Environment configurations
 type Configuration struct {
 	Mongo  *MongoConfiguration       `json:"mongo"`
 	Server *ServerConfiguration      `json:"server"`
 	Env    *ApplicationConfiguration `json:"app"`
+	Auth   *AuthConfiguration        `json:"auth"`
 }
 
 // GetConfigurations get api configurations.
@@ -39,6 +45,9 @@ func GetConfigurations() *Configuration {
 			DbName: getConfigOrDefault("DBNAME", "coffee-killers")},
 		Server: &ServerConfiguration{
 			Port: port},
+		Auth: &AuthConfiguration{
+			Secret: getConfigOrDefault("SECRET", "devscret"),
+		},
 		Env: &ApplicationConfiguration{
 			Environment: getConfigOrDefault("APP_ENV", "development")}}
 }

@@ -1,6 +1,7 @@
 package services
 
 import (
+	DTOs "../dataobjects"
 	Entities "../entities"
 	Infra "../infra"
 	Models "../models"
@@ -20,13 +21,35 @@ func NewUserService(session *Infra.Session) *UserService {
 	return &UserService{collection}
 }
 
-func (p *UserService) Create(u *Entities.User) error {
-	user := Models.NewUserModel(u)
-	return p.collection.Insert(&user)
+func (us *UserService) CreateUser(u *Entities.User) error {
+	user, err := Models.NewUserModel(u)
+	if err != nil {
+		return err
+	}
+	return us.collection.Insert(&user)
 }
 
-func (p *UserService) GetByUsername(username string) (*Entities.User, error) {
+func (us *UserService) GetByUsername(username string) (Entities.User, error) {
 	model := Models.UserModel{}
-	err := p.collection.Find(bson.M{"username": username}).One(&model)
-	return model.ToRootUser(), err
+	err := us.collection.Find(bson.M{"username": username}).One(&model)
+	return Entities.User{
+		ID:       model.ID.Hex(),
+		Username: model.Username,
+		Password: "",
+	}, err
+}
+
+func (us *UserService) Login(c DTOs.UserCredentials) (Entities.User, error) {
+	model := Models.UserModel{}
+	err := us.collection.Find(bson.M{"username": c.Username}).One(&model)
+
+	err = model.ComparePassword(c.Password)
+	if err != nil {
+		return Entities.User{}, err
+	}
+
+	return Entities.User{
+		ID:       model.ID.Hex(),
+		Username: model.Username,
+		Password: "-"}, err
 }

@@ -25,10 +25,11 @@ func (a *App) Init() {
 	if err != nil {
 		log.Fatalf("unable to connect to mongodb, %s", err)
 	}
-	a.server = Server.CreateServer(a.config.Server)
+	a.server = Server.CreateServer(a.config)
 
 	us := Services.NewUserService(a.session.Copy())
-	Controllers.CreateUserController(us, a.server.Router)
+
+	Controllers.CreateUserController(us, a.server.NewSubrouter("api/user"), a.server.GetAuth())
 }
 
 // Run run app
